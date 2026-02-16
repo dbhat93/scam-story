@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I Almost Got Scammed — An Interactive Investigation</title>
+
+<!-- Social Sharing Meta Tags -->
+<meta property="og:title" content="I Almost Got Scammed — An Interactive Investigation">
+<meta property="og:description" content="A sophisticated scam impersonated the Indian Consulate and Delhi Police. Follow the clues on this interactive detective board.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://your-domain.com/scam-story.html">
+<meta property="og:image" content="https://your-domain.com/scam-story-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="I Almost Got Scammed — An Interactive Investigation">
+<meta name="twitter:description" content="A sophisticated scam impersonated the Indian Consulate and Delhi Police. Follow the clues on this interactive detective board.">
+<meta name="twitter:image" content="https://your-domain.com/scam-story-preview.png">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-deep: #0a0e17;
+    --bg-board: #111827;
+    --bg-board-light: #1a2236;
+    --card-bg: #1e293b;
+    --card-bg-hover: #243044;
+    --card-border: #334155;
+    --card-border-glow: #475569;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #f59e0b;
+    --accent-dim: #b45309;
+    --accent-glow: rgba(245, 158, 11, 0.15);
+    --red-string: #ef4444;
+    --red-string-glow: rgba(239, 68, 68, 0.3);
+    --red-flag-bg: #991b1b;
+    --red-flag-border: #dc2626;
+    --green: #22c55e;
+    --green-dim: #166534;
+    --blue: #3b82f6;
+    --blue-dim: #1e40af;
+    --cyan: #06b6d4;
+    --transition-speed: 0.9s;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg-deep);
+    font-family: 'Inter', -apple-system, sans-serif;
+  }
+
+  #viewport {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    position: relative;
+    cursor: grab;
+    touch-action: none;
+  }
+  #viewport.grabbing { cursor: grabbing; }
+  #viewport.zoomed-in { cursor: default; }
+
+  #canvas {
+    width: 2200px;
+    height: 2400px;
+    position: absolute;
+    top: 0; left: 0;
+    transform-origin: 0 0;
+    transition: transform var(--transition-speed) cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    background:
+      radial-gradient(ellipse at 30% 40%, rgba(30, 42, 66, 0.8) 0%, transparent 60%),
+      radial-gradient(ellipse at 70% 60%, rgba(25, 35, 55, 0.6) 0%, transparent 50%),
+      var(--bg-board);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #canvas { transition: none !important; }
+    .card, .red-flag-badge { transition: none !important; animation: none !important; }
+  }
+
+  /* Subtle grid overlay */
+  #canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow border */
+  #canvas::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(245, 158, 11, 0.1);
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.5);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* Red strings */
+  #strings {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .string-line {
+    stroke: var(--red-string);
+    stroke-width: 1.5;
+    fill: none;
+    opacity: 0.5;
+    filter: drop-shadow(0 0 4px var(--red-string-glow));
+    stroke-dasharray: 8, 4;
+  }
+
+  /* ═══ CARDS ═══ */
+  .card {
+    position: absolute;
+    width: 300px;
+    max-height: 180px;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0 0 var(--accent-glow);
+    cursor: pointer;
+    z-index: 10;
+    transition: box-shadow 0.3s ease, max-height 0.01s;
+  }
+  .card.expanded {
+    max-height: none;
+    overflow: visible;
+    width: 420px;
+    border-color: var(--accent-dim);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 30px var(--accent-glow);
+    z-index: 50;
+  }
+  .card:not(.expanded):hover {
+    box-shadow: 0 6px 30px rgba(0,0,0,0.5), 0 0 20px var(--accent-glow);
+    border-color: var(--card-border-glow);
+    z-index: 20;
+  }
+
+  .card-header {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.04));
+    border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+    color: var(--accent);
+    padding: 12px 16px;
+    font-family: 'Special Elite', cursive;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-number {
+    background: var(--accent);
+    color: var(--bg-deep);
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .card-icon {
+    text-align: center;
+    padding: 18px 0 8px;
+  }
+  .card-icon svg {
+    width: 44px;
+    height: 44px;
+  }
+
+  .card-preview {
+    padding: 10px 16px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    min-height: 50px;
+  }
+
+  /* Expanded detail */
+  .card-detail {
+    display: none;
+    padding: 0 16px 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+  }
+  .card-detail .narration {
+    margin-bottom: 14px;
+    font-style: italic;
+    color: var(--text-secondary);
+    border-left: 3px solid var(--accent-dim);
+    padding-left: 12px;
+  }
+  .card-detail .dialogue {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .card-detail .dialogue::before {
+    content: attr(data-speaker);
+    font-weight: 600;
+    color: var(--red-string);
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .card-detail .my-response {
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.15);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .card-detail .my-response::before {
+    content: 'ME';
+    font-weight: 600;
+    color: var(--green);
+    display: block;
+    margin-bottom: 4px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+  }
+
+  .red-flag-badge {
+    background: var(--red-flag-bg);
+    border: 1px solid var(--red-flag-border);
+    color: #fecaca;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease 0.6s, transform 0.5s ease 0.6s;
+  }
+  .red-flag-badge.visible { opacity: 1; transform: translateY(0); }
+  .red-flag-badge::before {
+    content: 'RED FLAG';
+    display: block;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    color: #fca5a5;
+  }
+
+  /* Pin dots */
+  .pin-dot {
+    position: absolute;
+    top: -5px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    z-index: 15;
+    pointer-events: none;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .pin-dot.left { left: 24px; }
+  .pin-dot.right { right: 24px; }
+  .pin-dot.center { left: 50%; transform: translateX(-50%); }
+
+  /* Title */
+  #title-banner {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    text-align: center;
+    pointer-events: none;
+  }
+  #title-banner h1 {
+    font-family: 'Special Elite', cursive;
+    color: var(--text-primary);
+    font-size: 38px;
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+    text-shadow: 0 0 40px rgba(245, 158, 11, 0.15);
+  }
+  #title-banner p {
+    color: var(--accent);
+    font-family: 'Special Elite', cursive;
+    font-size: 15px;
+    letter-spacing: 2px;
+    opacity: 0.7;
+  }
+
+  /* Controls */
+  #controls {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    background: rgba(10, 14, 23, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 8px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+  }
+  #controls.visible { opacity: 1; pointer-events: auto; }
+
+  .ctrl-btn {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--card-border);
+    padding: 8px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .ctrl-btn:hover { background: var(--card-bg); border-color: var(--accent-dim); }
+  .ctrl-btn:active { transform: translateY(1px); }
+
+  #scene-counter {
+    color: var(--accent);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 50px;
+    text-align: center;
+  }
+
+  /* Hint */
+  #hint {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    opacity: 0.8;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    letter-spacing: 0.5px;
+  }
+
+  /* Intro */
+  #intro-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-deep);
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    transition: opacity 0.8s ease;
+  }
+  #intro-overlay.hidden { opacity: 0; pointer-events: none; }
+  #intro-overlay h1 {
+    font-family: 'Special Elite', cursive;
+    color: var(--text-primary);
+    font-size: clamp(26px, 5vw, 48px);
+    letter-spacing: 4px;
+    margin-bottom: 14px;
+  }
+  #intro-overlay .subtitle {
+    color: var(--accent);
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(13px, 2.2vw, 18px);
+    margin-bottom: 48px;
+    letter-spacing: 1px;
+    font-weight: 500;
+  }
+  #intro-overlay .start-text {
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.9; }
+  }
+
+  /* Zoom controls */
+  #zoom-indicator {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+  }
+  .zoom-btn {
+    width: 36px; height: 36px;
+    background: rgba(10, 14, 23, 0.8);
+    backdrop-filter: blur(10px);
+    color: var(--text-secondary);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.2s, color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .zoom-btn:hover { background: var(--card-bg); color: var(--accent); }
+  #zoom-level {
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  /* Help hint */
+  #help-hint {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 250;
+    background: rgba(10, 14, 23, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    max-width: 300px;
+  }
+  #help-hint.visible { opacity: 1; }
+  #help-hint h3 {
+    color: var(--accent);
+    margin-bottom: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  #help-hint .hint-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 12px;
+    text-align: left;
+    color: var(--text-secondary);
+  }
+  #help-hint .hint-key {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--accent);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .card { width: 260px; }
+    .card.expanded { width: 380px; }
+    .card-header { font-size: 12px; padding: 10px 12px; }
+    .card-preview { font-size: 12px; padding: 8px 12px 14px; }
+    .card-detail { font-size: 13px; }
+    .card-detail .dialogue, .card-detail .my-response { font-size: 12px; }
+    .red-flag-badge { font-size: 11px; }
+    #title-banner h1 { font-size: 26px; }
+    .ctrl-btn { padding: 7px 12px; font-size: 12px; }
+    #controls { gap: 5px; bottom: 12px; }
+    .zoom-btn { width: 40px; height: 40px; }
+  }
+  @media (max-width: 480px) {
+    .card { width: 230px; }
+    .card.expanded { width: 320px; }
+    .card-icon svg { width: 34px; height: 34px; }
+    .card-preview { font-size: 11px; min-height: 40px; }
+    .ctrl-btn { padding: 6px 10px; font-size: 11px; }
+    #btn-back { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG icon defs (reusable, sharp at any zoom) -->
+<svg style="display:none">
+  <defs>
+    <symbol id="ico-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+      <path d="M14.5 2a8.38 8.38 0 017.5 7.5" opacity="0.5"/>
+      <path d="M14.5 6A4.38 4.38 0 0118 9.5" opacity="0.5"/>
+    </symbol>
+    <symbol id="ico-hook" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+    </symbol>
+    <symbol id="ico-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+    </symbol>
+    <symbol id="ico-transfer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+      <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21" opacity="0.5"/>
+    </symbol>
+    <symbol id="ico-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+    </symbol>
+    <symbol id="ico-badge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <path d="M9 12l2 2 4-4" opacity="0.5"/>
+    </symbol>
+    <symbol id="ico-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23"/>
+      <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6"/>
+      <path d="M17 16.95A7 7 0 015 12"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+      <path d="M19 12a7 7 0 01-.11 1.23" opacity="0.5"/>
+    </symbol>
+    <symbol id="ico-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <polyline points="9 12 11 14 15 10"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- Intro overlay -->
+<div id="intro-overlay">
+  <h1>CASE FILE #2024-SF-0847</h1>
+  <div class="subtitle">The Consulate Impersonation</div>
+  <div class="start-text">Click anywhere to open the case</div>
+</div>
+
+<!-- Controls -->
+<div id="controls">
+  <button class="ctrl-btn" id="btn-prev">&#9664; Prev</button>
+  <button class="ctrl-btn" id="btn-back">Overview</button>
+  <span id="scene-counter"></span>
+  <button class="ctrl-btn" id="btn-next">Next &#9654;</button>
+</div>
+
+<div id="hint">Click a card to investigate</div>
+
+<div id="zoom-indicator">
+  <button class="zoom-btn" id="btn-zoom-in">+</button>
+  <span id="zoom-level">100%</span>
+  <button class="zoom-btn" id="btn-zoom-out">&minus;</button>
+  <button class="zoom-btn" id="btn-zoom-fit" style="font-size:13px;margin-top:2px;">&#8862;</button>
+</div>
+
+<div id="help-hint">
+  <h3>Navigate</h3>
+  <div class="hint-row"><span class="hint-key">Click</span> Tap a card to zoom in</div>
+  <div class="hint-row"><span class="hint-key">Drag</span> Pan around the board</div>
+  <div class="hint-row"><span class="hint-key">Scroll</span> Zoom in and out</div>
+  <div class="hint-row"><span class="hint-key">&larr; &rarr;</span> Navigate between scenes</div>
+  <div class="hint-row"><span class="hint-key">Esc</span> Back to full board</div>
+</div>
+
+<!-- Main viewport -->
+<div id="viewport">
+  <div id="canvas">
+
+    <div id="title-banner">
+      <h1>THE CONSULATE SCAM</h1>
+      <p>An Interactive Investigation</p>
+    </div>
+
+    <svg id="strings" viewBox="0 0 2200 2400" preserveAspectRatio="none"></svg>
+
+    <!-- ═══ ROW 1: Cards 1-4 centered ═══ -->
+    <!-- Total row width: 4 cards * 300px + 3 gaps * ~120px = 1560px. Center start: (2200-1560)/2 = 320px -->
+
+    <div class="card" id="card-1" style="left: 270px; top: 180px; transform: rotate(-1.5deg);" data-index="0">
+      <div class="pin-dot left" style="color: var(--red-string);"></div>
+      <div class="card-header"><span class="card-number">1</span> The Call</div>
+      <div class="card-icon"><svg style="color:var(--accent)"><use href="#ico-phone"/></svg></div>
+      <div class="card-preview">A San Francisco area code. "This is the Consulate General of India..."</div>
+      <div class="card-detail">
+        <div class="narration">It started like any other afternoon. My phone buzzes &mdash; a 415 number. San Francisco. I pick up thinking it might be work-related.</div>
+        <div class="dialogue" data-speaker="Caller">Good afternoon. This is a call from the Consulate General of India, San Francisco. We are contacting you regarding an urgent matter concerning your identity documents.</div>
+        <div class="my-response">A consulate calling me directly? Unusual, but I'm listening...</div>
+        <div class="red-flag-badge">Official agencies rarely cold-call individuals. They send letters or emails through verified channels. An unsolicited call claiming urgency is a classic opening move.</div>
+      </div>
+    </div>
+
+    <div class="card" id="card-2" style="left: 690px; top: 150px; transform: rotate(1deg);" data-index="1">
+      <div class="pin-dot right" style="color: var(--accent);"></div>
+      <div class="card-header"><span class="card-number">2</span> The Hook</div>
+      <div class="card-icon"><svg style="color:var(--red-string)"><use href="#ico-hook"/></svg></div>
+      <div class="card-preview">"Your identity is tied to a phone number in New Delhi involved in fraud."</div>
+      <div class="card-detail">
+        <div class="narration">The voice is calm, professional. Just enough concern to make you lean in.</div>
+        <div class="dialogue" data-speaker="Caller">Sir, we have received information from Delhi Police that your Aadhaar and PAN details are linked to a mobile number in New Delhi that has been flagged for involvement in financial fraud activities.</div>
+        <div class="my-response">Wait &mdash; my identity tied to fraud? That got my attention. My mind started racing through every document I've ever shared.</div>
+        <div class="red-flag-badge">Fear is the scammer's best weapon. By connecting YOUR identity to criminal activity, they trigger panic. You stop thinking critically and start thinking about self-preservation.</div>
+      </div>
+    </div>
+
+    <div class="card" id="card-3" style="left: 1110px; top: 190px; transform: rotate(-0.8deg);" data-index="2">
+      <div class="pin-dot center" style="color: var(--blue);"></div>
+      <div class="card-header"><span class="card-number">3</span> The Ask</div>
+      <div class="card-icon"><svg style="color:var(--cyan)"><use href="#ico-file"/></svg></div>
+      <div class="card-preview">"You need a No Objection Certificate from the Delhi Police to clear your name."</div>
+      <div class="card-detail">
+        <div class="narration">Here comes the "solution" to the problem they just invented.</div>
+        <div class="dialogue" data-speaker="Caller">To resolve this matter and clear your name from the investigation, you will need to obtain a No Objection Certificate &mdash; an NOC &mdash; from the Delhi Police Cyber Crime Division. We can assist you in connecting with the relevant officers.</div>
+        <div class="my-response">An "NOC" &mdash; sounds official enough. And they're offering to help? How convenient. But I've never heard of this process before...</div>
+        <div class="red-flag-badge">The classic problem-solution setup: create urgency, then offer to be the helpful guide. Real authorities provide reference numbers and ask YOU to contact them through official channels.</div>
+      </div>
+    </div>
+
+    <div class="card" id="card-4" style="left: 1530px; top: 160px; transform: rotate(1.5deg);" data-index="3">
+      <div class="pin-dot left" style="color: var(--green);"></div>
+      <div class="card-header"><span class="card-number">4</span> The Transfer</div>
+      <div class="card-icon"><svg style="color:var(--accent)"><use href="#ico-transfer"/></svg></div>
+      <div class="card-preview">Transferred to a "senior official" &mdash; using a real officer's name. Case ID. Delhi address.</div>
+      <div class="card-detail">
+        <div class="narration">This is where it got impressively elaborate. They didn't just wing it &mdash; they did their homework.</div>
+        <div class="dialogue" data-speaker="'Senior Official'">I am transferring you now to our senior attach&eacute; who handles cyber crime liaison cases. Please hold.</div>
+        <div class="dialogue" data-speaker="'Senior Attach&eacute;' (using a real officer's name)">Your case reference is CYB-2024-SF-0847. The investigating office is located at [actual Delhi address]. I will now connect you with the Delhi Police Cyber Cell for your statement.</div>
+        <div class="my-response">A real officer's name? A case ID? A physical address? These people came PREPARED. I almost wanted to applaud the production value.</div>
+        <div class="red-flag-badge">Scammers research real names, addresses, and titles from public government websites. Familiarity is NOT proof of legitimacy. Always verify independently &mdash; look up the real number yourself and call back.</div>
+      </div>
+    </div>
+
+    <!-- ═══ ROW 2: Cards 5-8 centered ═══ -->
+
+    <div class="card" id="card-5" style="left: 270px; top: 1100px; transform: rotate(0.8deg);" data-index="4">
+      <div class="pin-dot right" style="color: var(--accent);"></div>
+      <div class="card-header"><span class="card-number">5</span> The Escalation</div>
+      <div class="card-icon"><svg style="color:var(--red-string)"><use href="#ico-video"/></svg></div>
+      <div class="card-preview">Connected to "Delhi Police." They want a video call &mdash; and my ID on camera.</div>
+      <div class="card-detail">
+        <div class="narration">Another transfer. Another voice. This time claiming to be Delhi Police. And now they want to see my face.</div>
+        <div class="dialogue" data-speaker="'Delhi Police Officer'">Sir, as per procedure, we need to conduct a video identification call. Please have your Aadhaar card and passport ready for visual verification. This is mandatory for the NOC process.</div>
+        <div class="my-response">A video call? Where I show my ID documents to a stranger on the internet? My fraud-detection spidey sense is tingling hard now.</div>
+        <div class="red-flag-badge">NO legitimate police or government agency conducts identity verification via impromptu video calls. This is an attempt to capture your ID documents on camera for identity theft.</div>
+      </div>
+    </div>
+
+    <div class="card" id="card-6" style="left: 690px; top: 1130px; transform: rotate(-1.2deg);" data-index="5">
+      <div class="pin-dot left" style="color: var(--red-string);"></div>
+      <div class="card-header"><span class="card-number">6</span> The Pressure</div>
+      <div class="card-icon"><svg style="color:var(--accent)"><use href="#ico-badge"/></svg></div>
+      <div class="card-preview">A uniformed person appears on video. Real names. Relentless persistence.</div>
+      <div class="card-detail">
+        <div class="narration">They actually had someone in what looked like a police uniform on video. The commitment to the bit was... honestly impressive.</div>
+        <div class="dialogue" data-speaker="'Delhi Police Officer' (in uniform, on video)">Sir, this is a time-sensitive matter. Non-cooperation will be noted in your file and may result in a non-bailable warrant. We need your full cooperation immediately.</div>
+        <div class="my-response">Points for production quality, I'll give them that. A whole costume, a backdrop, the works. But the threats? That's not how due process works.</div>
+        <div class="red-flag-badge">Threats of arrest or warrants are high-pressure manipulation tactics. Real law enforcement follows proper legal procedures &mdash; they don't threaten you into compliance over a video call.</div>
+      </div>
+    </div>
+
+    <div class="card" id="card-7" style="left: 1110px; top: 1100px; transform: rotate(1.3deg);" data-index="6">
+      <div class="pin-dot center" style="color: var(--blue);"></div>
+      <div class="card-header"><span class="card-number">7</span> The Isolation Demand</div>
+      <div class="card-icon"><svg style="color:var(--red-string)"><use href="#ico-mute"/></svg></div>
+      <div class="card-preview">"Go to a quiet room. No background noise. No one else can be present."</div>
+      <div class="card-detail">
+        <div class="narration">And here's where the mask slipped. The repeated, insistent demand that sealed it for me.</div>
+        <div class="dialogue" data-speaker="'Delhi Police Officer'">Sir, for the confidentiality of this investigation, you must move to a quiet, private location. There should be no background noise and no third party present. This is a matter of national security and must remain strictly confidential.</div>
+        <div class="dialogue" data-speaker="'Delhi Police Officer'">Are you alone now? I can hear something in the background. Please ensure complete privacy before we proceed.</div>
+        <div class="my-response">And THERE it is. They don't want me to be "confidential" &mdash; they want me isolated. No one to say "hey, this sounds like a scam." No witness. No reality check. Game over.</div>
+        <div class="red-flag-badge">THE BIGGEST RED FLAG: Demanding isolation. Scammers need you alone so no friend, family member, or colleague can break the spell. Any "official" demanding you can't tell anyone is almost certainly a scammer.</div>
+      </div>
+    </div>
+
+    <div class="card" id="card-8" style="left: 1530px; top: 1120px; transform: rotate(-0.5deg);" data-index="7">
+      <div class="pin-dot right" style="color: var(--green);"></div>
+      <div class="card-header"><span class="card-number">8</span> Case Closed</div>
+      <div class="card-icon"><svg style="color:var(--green)"><use href="#ico-shield"/></svg></div>
+      <div class="card-preview">Blocked. Reported. But it was a stark reminder &mdash; these scams are getting GOOD.</div>
+      <div class="card-detail">
+        <div class="narration">I'd seen enough. Blocked the number, reported it, and sat back to process what just happened.</div>
+        <div class="my-response">In my line of work building fraud prevention systems, I've studied these patterns. But experiencing it firsthand? Even with expertise, the early stages can pull you in. That's how good they've gotten.</div>
+        <div class="dialogue" data-speaker="Key Takeaways" style="background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.2);">
+          <strong>1.</strong> No agency demands immediate action via impromptu calls.<br>
+          <strong>2.</strong> Real names and addresses don't prove legitimacy &mdash; verify independently.<br>
+          <strong>3.</strong> Anyone demanding isolation is manipulating you.<br>
+          <strong>4.</strong> Always pause. Hang up. Call back through official numbers YOU look up.<br>
+          <strong>5.</strong> Trust your instincts &mdash; if something feels off, it probably is.
+        </div>
+        <div class="red-flag-badge">You made it through the case. Share this with someone &mdash; scam awareness is the best defense. The more people know these patterns, the harder it is for scammers to succeed.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('canvas');
+  const viewport = document.getElementById('viewport');
+  const controls = document.getElementById('controls');
+  const hint = document.getElementById('hint');
+  const intro = document.getElementById('intro-overlay');
+  const helpHint = document.getElementById('help-hint');
+  const cards = Array.from(document.querySelectorAll('.card'));
+  const stringSvg = document.getElementById('strings');
+  const zoomLevelEl = document.getElementById('zoom-level');
+
+  const CANVAS_W = 2200;
+  const CANVAS_H = 2400;
+  const MIN_SCALE = 0.15;
+  const MAX_SCALE = 3;
+
+  let currentScene = -1;
+  let viewportW, viewportH;
+  let currentTx = 0, currentTy = 0, currentScale = 1;
+  let animating = false;
+
+  function updateViewportSize() {
+    viewportW = viewport.clientWidth;
+    viewportH = viewport.clientHeight;
+  }
+
+  function drawStrings() {
+    stringSvg.innerHTML = '';
+    for (let i = 0; i < cards.length - 1; i++) {
+      const a = cards[i], b = cards[i + 1];
+      const ax = a.offsetLeft + a.offsetWidth / 2;
+      const ay = a.offsetTop + a.offsetHeight / 2;
+      const bx = b.offsetLeft + b.offsetWidth / 2;
+      const by = b.offsetTop + b.offsetHeight / 2;
+      const mx = (ax + bx) / 2;
+      const my = (ay + by) / 2 + (Math.random() * 20 - 10);
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`);
+      path.setAttribute('class', 'string-line');
+      stringSvg.appendChild(path);
+    }
+  }
+
+  function updateZoomDisplay() {
+    zoomLevelEl.textContent = Math.round(currentScale * 100) + '%';
+  }
+
+  function applyTransform(tx, ty, scale, animated) {
+    if (animated) {
+      canvas.style.transition = `transform var(--transition-speed) cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
+      animating = true;
+      const onEnd = () => { animating = false; canvas.removeEventListener('transitionend', onEnd); };
+      canvas.addEventListener('transitionend', onEnd);
+    } else {
+      canvas.style.transition = 'none';
+    }
+    currentTx = tx; currentTy = ty; currentScale = scale;
+    canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    updateZoomDisplay();
+  }
+
+  function getOverviewTransform() {
+    const padding = 40;
+    const scaleX = viewportW / (CANVAS_W + padding * 2);
+    const scaleY = viewportH / (CANVAS_H + padding * 2);
+    const scale = Math.min(scaleX, scaleY, 1);
+    return { scale, tx: (viewportW - CANVAS_W * scale) / 2, ty: (viewportH - CANVAS_H * scale) / 2 };
+  }
+
+  function getCardTransform(card) {
+    const cw = card.offsetWidth, ch = card.offsetHeight;
+    const padX = 60, padY = 100;
+    const scale = Math.min((viewportW - padX * 2) / cw, (viewportH - padY * 2) / ch, 2.0);
+    const cx = card.offsetLeft + cw / 2, cy = card.offsetTop + ch / 2;
+    return { scale, tx: viewportW / 2 - cx * scale, ty: viewportH / 2 - cy * scale };
+  }
+
+  function showOverview() {
+    currentScene = -1;
+    controls.classList.remove('visible');
+    hint.style.opacity = '0.8';
+    viewport.classList.remove('zoomed-in');
+    cards.forEach(card => {
+      card.querySelector('.card-detail').style.display = 'none';
+      card.classList.remove('expanded');
+      card.style.cursor = 'pointer';
+      const f = card.querySelector('.red-flag-badge');
+      if (f) f.classList.remove('visible');
+    });
+    requestAnimationFrame(() => {
+      const t = getOverviewTransform();
+      applyTransform(t.tx, t.ty, t.scale, true);
+    });
+  }
+
+  function zoomToCard(index) {
+    if (index < 0 || index >= cards.length) return;
+    currentScene = index;
+    const card = cards[index];
+    cards.forEach((c, i) => {
+      const detail = c.querySelector('.card-detail');
+      const flag = c.querySelector('.red-flag-badge');
+      if (i === index) { detail.style.display = 'block'; c.classList.add('expanded'); c.style.cursor = 'default'; }
+      else { detail.style.display = 'none'; c.classList.remove('expanded'); c.style.cursor = 'pointer'; if (flag) flag.classList.remove('visible'); }
+    });
+    requestAnimationFrame(() => { requestAnimationFrame(() => {
+      const t = getCardTransform(card);
+      applyTransform(t.tx, t.ty, t.scale, true);
+      controls.classList.add('visible');
+      hint.style.opacity = '0';
+      viewport.classList.add('zoomed-in');
+      document.getElementById('scene-counter').textContent = `${index + 1} / ${cards.length}`;
+      setTimeout(() => { const f = card.querySelector('.red-flag-badge'); if (f) f.classList.add('visible'); }, 100);
+    }); });
+  }
+
+  // Mouse drag
+  let isDragging = false, dragStartX, dragStartY, dragStartTx, dragStartTy, dragMoved = false;
+  viewport.addEventListener('mousedown', (e) => {
+    if (e.button !== 0 || e.target.closest('#controls,#zoom-indicator')) return;
+    isDragging = true; dragMoved = false;
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    dragStartTx = currentTx; dragStartTy = currentTy;
+    viewport.classList.add('grabbing');
+    canvas.style.transition = 'none';
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+    currentTx = dragStartTx + dx; currentTy = dragStartTy + dy;
+    canvas.style.transform = `translate(${currentTx}px, ${currentTy}px) scale(${currentScale})`;
+  });
+  window.addEventListener('mouseup', () => {
+    if (isDragging) { isDragging = false; viewport.classList.remove('grabbing'); if (dragMoved && currentScene >= 0) currentScene = -2; }
+  });
+
+  // Mouse wheel zoom
+  viewport.addEventListener('wheel', (e) => { e.preventDefault(); zoomAtPoint(e.clientX, e.clientY, e.deltaY > 0 ? 0.9 : 1.1); }, { passive: false });
+
+  function zoomAtPoint(cx, cy, factor) {
+    const ns = Math.max(MIN_SCALE, Math.min(MAX_SCALE, currentScale * factor));
+    if (ns === currentScale) return;
+    const r = ns / currentScale;
+    applyTransform(cx - (cx - currentTx) * r, cy - (cy - currentTy) * r, ns, false);
+    if (currentScene >= 0) currentScene = -2;
+    if (currentScene === -1) currentScene = -2;
+  }
+
+  // Touch
+  let touches = [], touchPanStartTx, touchPanStartTy, touchStartDist = 0, touchStartScale = 1, touchStartMidX, touchStartMidY, touchDidMove = false;
+  function getTouchDist(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+  function getTouchMid(a, b) { return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; }
+
+  viewport.addEventListener('touchstart', (e) => {
+    if (e.target.closest('#controls,#zoom-indicator')) return;
+    touches = Array.from(e.touches); touchDidMove = false; canvas.style.transition = 'none';
+    if (touches.length === 1) { dragStartX = touches[0].clientX; dragStartY = touches[0].clientY; touchPanStartTx = currentTx; touchPanStartTy = currentTy; }
+    else if (touches.length === 2) { touchStartDist = getTouchDist(touches[0], touches[1]); touchStartScale = currentScale; const m = getTouchMid(touches[0], touches[1]); touchStartMidX = m.x; touchStartMidY = m.y; touchPanStartTx = currentTx; touchPanStartTy = currentTy; }
+  }, { passive: true });
+
+  viewport.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const ct = Array.from(e.touches);
+    if (ct.length === 1 && touches.length <= 1) {
+      const dx = ct[0].clientX - dragStartX, dy = ct[0].clientY - dragStartY;
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) touchDidMove = true;
+      currentTx = touchPanStartTx + dx; currentTy = touchPanStartTy + dy;
+      canvas.style.transform = `translate(${currentTx}px, ${currentTy}px) scale(${currentScale})`;
+    } else if (ct.length === 2) {
+      touchDidMove = true;
+      const dist = getTouchDist(ct[0], ct[1]), mid = getTouchMid(ct[0], ct[1]);
+      const ns = Math.max(MIN_SCALE, Math.min(MAX_SCALE, touchStartScale * (dist / touchStartDist)));
+      const r = ns / touchStartScale;
+      applyTransform(mid.x - (touchStartMidX - touchPanStartTx) * r, mid.y - (touchStartMidY - touchPanStartTy) * r, ns, false);
+      if (currentScene >= 0) currentScene = -2;
+    }
+  }, { passive: false });
+
+  viewport.addEventListener('touchend', (e) => {
+    const rem = Array.from(e.touches);
+    if (rem.length === 1) { dragStartX = rem[0].clientX; dragStartY = rem[0].clientY; touchPanStartTx = currentTx; touchPanStartTy = currentTy; }
+    touches = rem;
+    if (touchDidMove && currentScene >= 0) currentScene = -2;
+  }, { passive: true });
+
+  // Card clicks
+  cards.forEach((card, i) => {
+    card.addEventListener('click', () => { if (dragMoved || touchDidMove || currentScene === i) return; zoomToCard(i); });
+  });
+
+  // Zoom buttons
+  document.getElementById('btn-zoom-in').addEventListener('click', () => zoomAtPoint(viewportW / 2, viewportH / 2, 1.3));
+  document.getElementById('btn-zoom-out').addEventListener('click', () => zoomAtPoint(viewportW / 2, viewportH / 2, 0.7));
+  document.getElementById('btn-zoom-fit').addEventListener('click', showOverview);
+
+  // Nav buttons
+  document.getElementById('btn-back').addEventListener('click', showOverview);
+  document.getElementById('btn-prev').addEventListener('click', () => { if (currentScene > 0) zoomToCard(currentScene - 1); });
+  document.getElementById('btn-next').addEventListener('click', () => { if (currentScene < cards.length - 1) zoomToCard(currentScene + 1); });
+
+  // Keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') showOverview();
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); if (currentScene < 0) zoomToCard(0); else if (currentScene < cards.length - 1) zoomToCard(currentScene + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); if (currentScene > 0) zoomToCard(currentScene - 1); else if (currentScene === 0) showOverview(); }
+    else if (e.key === '+' || e.key === '=') zoomAtPoint(viewportW / 2, viewportH / 2, 1.2);
+    else if (e.key === '-' || e.key === '_') zoomAtPoint(viewportW / 2, viewportH / 2, 0.8);
+  });
+
+  // Intro
+  intro.addEventListener('click', () => {
+    intro.classList.add('hidden');
+    showOverview();
+    setTimeout(() => helpHint.classList.add('visible'), 500);
+    setTimeout(() => helpHint.classList.remove('visible'), 4500);
+  });
+
+  // Init
+  updateViewportSize();
+  drawStrings();
+  const it = getOverviewTransform();
+  applyTransform(it.tx, it.ty, it.scale, false);
+  window.addEventListener('resize', () => { updateViewportSize(); if (currentScene === -1) showOverview(); else if (currentScene >= 0) zoomToCard(currentScene); });
+})();
+</script>
+</body>
+</html>
